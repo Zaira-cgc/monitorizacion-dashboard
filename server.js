@@ -12,7 +12,7 @@ const PORT = 3000;
 app.use(cors());
 
 //URI de conexión(debe protegerse el usuario y contraseña en producción)
-const uri = "mongodb+srv://monitoreodb:cenicilladb@cluster0.ktlly.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"; // o tu URI de MongoDB Atlas
+const uri = process.env.MONGO_URI;
 const cliente = new MongoClient(uri);
 
 //Nombre de la base de datos y colección tal como existe en la BD

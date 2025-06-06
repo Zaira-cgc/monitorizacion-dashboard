@@ -124,7 +124,7 @@
 
     //Obtiene los datos desde una API REST y llama a filtrarYMostrar() para procesarlos
     function cargarDatos() {
-      fetch("https://monitorizacion-dashboard.onrender.com/")
+      fetch('https://monitorizacion-dashboard.onrender.com/api/estadisticas')
         .then(res => res.json())
         .then(datos => {
           todosLosDatos = datos;

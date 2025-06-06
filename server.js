@@ -1,4 +1,5 @@
 //Se importan los módulos necesarios para crear el servidor, habilitar peticiones y conectar la BD
+const path = require('path'); 
 const express = require("express");
 const cors = require("cors");
 const { MongoClient } = require("mongodb");
@@ -50,6 +51,10 @@ app.get("/api/estadisticas", async (req, res) => {
     console.error("Error al obtener datos:", err);
     res.status(500).json({ error: "Error al obtener datos" });
   }
+});
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 //inicia el servidor

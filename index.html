@@ -25,7 +25,7 @@
     .container {
       max-width: 1200px;
       margin: 2rem auto;
-      padding: 0 2rem;
+      padding: 0 1rem;
     }
 
     .card {
@@ -34,16 +34,20 @@
       padding: 1.5rem;
       margin-bottom: 2rem;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 100%;
+      box-sizing: border-box;
     }
 
     h2 {
       margin-top: 0;
-      font-size: 1.2rem;
+      font-size: 1.4rem;
       color: #333;
+      text-align: center;
     }
 
     canvas {
       width: 100% !important;
+      height: auto !important;
       max-height: 400px;
     }
 
@@ -57,11 +61,12 @@
       padding: 0.5rem;
       border: 1px solid #ddd;
       text-align: center;
+      font-size: 0.95rem;
     }
 
     .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      display: flex;
+      flex-wrap: wrap;
       gap: 1rem;
       margin-top: 1rem;
     }
@@ -71,6 +76,23 @@
       padding: 1rem;
       border-radius: 8px;
       text-align: center;
+      flex: 1;
+      min-width: 150px;
+      box-sizing: border-box;
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .filters input {
+      padding: 0.5rem;
+      font-size: 1rem;
+      flex: 1 1 150px;
     }
 
     footer {
@@ -79,19 +101,35 @@
       color: #888;
     }
 
-    .filters {
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
+    /* 🔁 Media query para pantallas pequeñas */
+    @media (max-width: 768px) {
+      .container {
+        padding: 0 1rem;
+      }
 
-    .filters input {
-      padding: 0.5rem;
-      font-size: 1rem;
+      .filters {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .filters input {
+        width: 100%;
+      }
+
+      .stat {
+        flex: 1 1 100%;
+      }
+
+      table, th, td {
+        font-size: 0.9rem;
+      }
+
+      h2 {
+        font-size: 1.2rem;
+      }
     }
-  </style>
+</style>
+
 </head>
 <body>
   <header>
@@ -124,7 +162,7 @@
 
     //Obtiene los datos desde una API REST y llama a filtrarYMostrar() para procesarlos
     function cargarDatos() {
-      fetch('https://monitorizacion-dashboard.onrender.com/api/estadisticas')
+      fetch('https://monitorizacion-dashboard.onrender.com/api/estadisticas') //Hace referencia al backend para obtener los registros.
         .then(res => res.json())
         .then(datos => {
           todosLosDatos = datos;

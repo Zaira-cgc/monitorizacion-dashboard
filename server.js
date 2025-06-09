@@ -53,6 +53,7 @@ app.get("/api/estadisticas", async (req, res) => {
   }
 });
 
+//respuesta a peticiones HTTP para mostrarse en el navegador.
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });

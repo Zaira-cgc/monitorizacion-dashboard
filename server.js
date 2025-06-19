@@ -5,12 +5,13 @@ const cors       = require('cors');
 const bcrypt     = require('bcrypt');
 const jwt        = require('jsonwebtoken');
 const { MongoClient } = require('mongodb');
-
+const path = require('path'); // si aún no lo tienes
 
 // 2. INICIALIZAR APP Y MIDDLEWARES
 const app = express();
 app.use(cors());                         // ➜ habilita CORS PARA TODAS las rutas
 app.use(express.json());                 // ➜ parsea JSON en req.body
+app.use(express.static(path.join(__dirname, 'public')));
 
 
 // 3. DEFINIR VARIABLES DE CONEXIÓN
@@ -128,6 +129,10 @@ app.get('/api/usuario', verificarToken, async (req, res) => {
   }
 });
 
+// Ruta para la raíz (inicio)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // 10. INICIAR CONEXIÓN Y SERVIDOR
 conectarDB().then(() => {

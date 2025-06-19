@@ -146,7 +146,7 @@
 
     // Validar si es admin antes de mostrar la página
     async function validarAdmin() {
-      const res = await fetch('http://localhost:3000/api/usuario', {
+      const res = await fetch('https://monitorizacion-dashboard.onrender.com/api/usuario', {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -170,7 +170,7 @@
         const password = passwordInput.value;
         const rol = rolInput.value;
 
-        const res = await fetch('http://localhost:3000/api/register', {
+        const res = await fetch('https://monitorizacion-dashboard.onrender.com/api/register', {
             method: 'POST',
             headers: {
             'Content-Type': 'application/json',

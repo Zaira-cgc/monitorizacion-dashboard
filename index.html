@@ -197,7 +197,7 @@
     async function verificarRol() {
       const token = localStorage.getItem('token');
       try {
-        const res = await fetch('http://localhost:3000/api/usuario', {
+        const res = await fetch('https://monitorizacion-dashboard.onrender.com/api/usuario', {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -216,7 +216,7 @@
     //Obtiene los datos desde una API REST y llama a filtrarYMostrar() para procesarlos
     function cargarDatos() {
       const token = localStorage.getItem('token');
-      fetch('http://localhost:3000/api/estadisticas', {
+      fetch('https://monitorizacion-dashboard.onrender.com/api/estadisticas', {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(res => {

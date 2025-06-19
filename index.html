@@ -139,6 +139,23 @@
       height: auto !important;
       max-width: 100%;
     }
+
+    .logout-button {
+    background-color: #3d5acc;
+    color: white;
+    border: none;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    margin: 0.5rem;
+    float: right;
+    transition: background-color 0.3s ease;
+    }
+
+    .logout-button:hover {
+    background-color: #c0392b;
+    }
   </style>
 
 </head>
@@ -146,6 +163,14 @@
   <header>
     <h1>💧Monitorización de las condiciones ambientales 🌱</h1>
     <p>Visualización de los datos recogidos por los sensores</p>
+    <button class="logout-button" onclick="logout()">Cerrar sesión</button>
+    <button id="adminBtn" class="logout-button" onclick="location.href='admin.html'">Administrar usuarios</button>
+    <script>
+      function logout() {
+        localStorage.removeItem('token');
+        window.location = 'login.html';
+      }
+    </script>
   </header>
 
   <!--Permite al usuario filtrar los datos por rango de fechas
@@ -157,7 +182,7 @@
         <label>Hasta: <input type="date" id="fechaFin"></label>
         <button onclick="cargarDatos()">Filtrar</button>
       </div>
-      <button onclick="exportarCSV()">📁 Exportar CSV</button>
+      <button id="exportarBtn" onclick="exportarCSV()">📁 Exportar CSV</button>
     </div>
 
     <div id="graficas"></div>
@@ -169,15 +194,42 @@
 
   <!--Javascript principal que contiene las funciones lógicas-->
   <script>
+    async function verificarRol() {
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('http://localhost:3000/api/usuario', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.rol !== 'admin') {
+          document.getElementById('adminBtn').style.display = 'none';
+          document.getElementById('exportarBtn').style.display = 'none';
+        }
+      } catch {
+        document.getElementById('adminBtn').style.display = 'none';
+        document.getElementById('exportarBtn').style.display = 'none';
+      }
+    }
+    verificarRol();
     let todosLosDatos = []; //Almacena los datos del servidor
 
     //Obtiene los datos desde una API REST y llama a filtrarYMostrar() para procesarlos
     function cargarDatos() {
-      fetch('https://monitorizacion-dashboard.onrender.com/api/estadisticas') //Hace referencia al backend para obtener los registros.
-        .then(res => res.json())
+      const token = localStorage.getItem('token');
+      fetch('http://localhost:3000/api/estadisticas', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => {
+          if (!res.ok) throw new Error("No autorizado");
+          return res.json();
+        })
         .then(datos => {
           todosLosDatos = datos;
           filtrarYMostrar();
+        })
+        .catch(err => {
+          alert("Debes iniciar sesión");
+          window.location = 'login.html';
         });
     }
 
@@ -237,16 +289,26 @@
       };
 
       sensores.forEach(sensor => {
-        const valores = data.map(d => d[sensor]).filter(v => v !== null && !isNaN(v));
-        const intervalo = 1; //Redondea los valores a enteros.
+        const valores = data
+          .map(d => d[sensor])
+          .filter(v => v !== null && !isNaN(v) && v !== 0);
+
+        const intervalo = 1;
         const frecuencia = {};
         valores.forEach(v => {
           const grupo = (Math.floor(v / intervalo) * intervalo).toFixed(1);
           frecuencia[grupo] = (frecuencia[grupo] || 0) + 1;
         });
 
-        const labels = Object.keys(frecuencia).sort((a, b) => parseFloat(a) - parseFloat(b));
-        const datos = labels.map(l => frecuencia[l]);
+        // Ordenar todos por frecuencia descendente
+        const todosOrdenados = Object.keys(frecuencia)
+          .map(label => ({ valor: label, freq: frecuencia[label] }))
+          .sort((a, b) => b.freq - a.freq);
+
+        // Para la gráfica: solo top 10
+        const top10 = todosOrdenados.slice(0, 10);
+        const labels = top10.map(item => item.valor);
+        const datos = top10.map(item => item.freq);
 
         const card = document.createElement("div");
         card.className = "card";
@@ -264,7 +326,8 @@
             <div class="stat">🔁 <strong>Distintos:</strong> ${labels.length}</div>
           </div>
         `;
-        //Crea la tabla de frecuencias
+
+        // Tabla con los 10 más frecuentes
         const tabla = document.createElement("table");
         const thead = document.createElement("thead");
         thead.innerHTML = `
@@ -276,22 +339,16 @@
         tabla.appendChild(thead);
 
         const tbody = document.createElement("tbody");
-        //Ordena por frecuencia descendientemente 
-        const ordenados = labels
-          .map(label => ({ valor: label, freq: frecuencia[label] }))
-          .sort((a, b) => b.freq - a.freq);
-
-        ordenados.forEach(({ valor, freq }) => {
+        todosOrdenados.forEach(({ valor, freq }) => {
           const fila = document.createElement("tr");
           fila.innerHTML = `<td>${valor}</td><td>${freq}</td>`;
           tbody.appendChild(fila);
         });
         tabla.appendChild(tbody);
-
         card.appendChild(tabla);
-
         contenedor.appendChild(card);
 
+        // Crear la gráfica con los 10 más frecuentes
         new Chart(document.getElementById(`grafico_${sensor}`), {
           type: "bar",
           data: {
@@ -358,8 +415,8 @@
           }
         });
       });
-    }
 
+    }
     //Genera  y descarga el archivo CSV mencionado al principio del código
     function exportarCSV() {
       if (!todosLosDatos.length) return;

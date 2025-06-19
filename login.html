@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Login</title>
+  <link rel="stylesheet" href="estilos.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <script src="https://kit.fontawesome.com/a2d9a34d9d.js" crossorigin="anonymous"></script>
+  <style>
+    /* === Fondo general con degradado === */
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #e0f7fa, #b2ebf2);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    /* === Contenedor del login === */
+    .login-container {
+      background: white;
+      padding: 2rem 2.5rem;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+
+    /* === Título principal === */
+    .login-container h1 {
+      font-size: 1.7rem;
+      color: #059b9a;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .login-container h1 i {
+      font-size: 1.6rem;
+    }
+
+    /* === Subtítulo === */
+    .login-container h2 {
+      font-size: 1.2rem;
+      color: #333;
+      margin-bottom: 1rem;
+    }
+
+    /* === Inputs === */
+    .login-container input {
+      width: 100%;
+      padding: 0.8rem;
+      margin: 0.5rem 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    /* === Botón === */
+    .login-container button {
+      background-color: #059b9a;
+      color: white;
+      padding: 0.8rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 1rem;
+      width: 100%;
+      transition: background-color 0.3s ease;
+    }
+
+    .login-container button:hover {
+      background-color: #047a7a;
+    }
+
+    .mensaje {
+      padding: 0.8rem 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      font-size: 1rem;
+      max-width: 400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .mensaje.exito {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .mensaje.error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <h1><i class="fas fa-seedling"></i> Monitorización Alpha Berries</h1>
+    <h2>Iniciar Sesión</h2>
+    <form id="loginForm">
+      <input type="email" id="email" placeholder="Correo" required><br>
+      <input type="password" id="password" placeholder="Contraseña" required><br>
+      <button type="submit">Entrar</button>
+    </form>
+
+    <div id="mensaje" style="text-align:center; margin-top: 1rem;"></div>
+  </div>
+
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      const res = await fetch('http://localhost:3000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+
+      const mensajeDiv = document.getElementById('mensaje');
+      mensajeDiv.textContent = '';
+      mensajeDiv.className = 'mensaje';
+
+      if (data.token) {
+        mensajeDiv.textContent = 'Inicio de sesión exitoso';
+        mensajeDiv.classList.add('exito');
+        localStorage.setItem('token', data.token);
+        setTimeout(() => window.location.href = 'index.html', 1000);
+      } else {
+        mensajeDiv.textContent = data.error || 'Error desconocido';
+        mensajeDiv.classList.add('error');
+      }
+    });
+  </script>
+</body>
+</html>

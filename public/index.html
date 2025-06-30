@@ -247,30 +247,50 @@
         </label>
         <button onclick="cargarDatos()">Filtrar</button>
       </div>
-
-      <div class="filters-group">
-        <button id="exportarBtn" onclick="exportarCSV()">📁 Exportar CSV</button>
-        <button onclick="exportarGraficaPDF('chart_24_humedad')">📄 Exportar PDF Humedad 24H</button>
-        <button onclick="exportarGraficaPDF('chart_24_temperatura')">📄 Exportar PDF Temperatura 24H</button>
-        <button onclick="exportarGraficaPDF('chart_semana_humedad')">📄 Exportar PDF Humedad Semanal</button>
-      </div>
     </div>
     
     <div class="card">
-      <h2 style="font-size:1.8rem">📊 Últimas 24 Horas Registradas</h2>
+      <h2 style="font-size:1.8rem">Últimas 24 Horas Registradas</h2>
       <div class="chart-wrapper">
-        <canvas id="chart_24_humedad"></canvas>
-        <canvas id="chart_24_temperatura" style="margin-top:40px"></canvas>
-        <canvas id="chart_24_suelo" style="margin-top:40px"></canvas>
+        <div class="grafica-bloque" id="bloque_24_humedad">
+          <h2 style="font-size:1.5rem">Humedad del aire</h2>
+          <canvas id="chart_24_humedad"></canvas>
+          <button onclick="exportarGraficaPDF('chart_24_humedad')">📄 Exportar PDF Humedad</button>
+        </div>
+        <div class="grafica-bloque" id="bloque_24_temperatura">
+          <h2 style="font-size:1.5rem">Temperatura ambiental</h2>
+          <canvas id="chart_24_temperatura" style="margin-top:40px"></canvas>
+          <button onclick="exportarGraficaPDF('chart_24_temperatura')">📄 Exportar PDF Temperatura</button>
+        </div>
+
+        <div class="grafica-bloque" id="bloque_24_suelo">
+          <h2 style="font-size:1.5rem">Humedad del suelo</h2>
+          <canvas id="chart_24_suelo" style="margin-top:40px"></canvas>
+          <button onclick="exportarGraficaPDF('chart_24_suelo')">📄 Exportar PDF Humedad del suelo</button>
+        </div>
       </div>
     </div>
 
     <div class="card">
-      <h2 style="font-size:1.8rem">📈 Histórico semanal</h2>
+      <h2 style="font-size:1.8rem">Histórico</h2>
       <div class="chart-wrapper">
-        <canvas id="chart_semana_humedad"></canvas>
-        <canvas id="chart_semana_temperatura" style="margin-top:40px"></canvas>
-        <canvas id="chart_semana_suelo" style="margin-top:40px"></canvas>
+        <div class="grafica-bloque" id="bloque_semana_humedad">
+          <h2 style="font-size:1.5rem">Humedad del aire</h2>
+          <canvas id="chart_semana_humedad"></canvas>
+          <button onclick="exportarGraficaPDF('chart_semana_humedad')">📄 Exportar PDF Humedad</button>
+        </div>
+
+        <div class="grafica-bloque" id="bloque_semana_temperatura">
+          <h2 style="font-size:1.5rem">Temperatura ambiental</h2>
+          <canvas id="chart_semana_temperatura" style="margin-top:40px"></canvas>
+          <button onclick="exportarGraficaPDF('chart_semana_temperatura')">📄 Exportar PDF Temperatura</button>
+        </div>
+
+        <div class="grafica-bloque" id="bloque_semana_suelo">
+          <h2 style="font-size:1.5rem">Humedad del suelo</h2>
+          <canvas id="chart_semana_suelo" style="margin-top:40px"></canvas>
+          <button onclick="exportarGraficaPDF('chart_semana_suelo')">📄 Exportar PDF Humedad Suelo</button>
+        </div>
       </div>
     </div>
 
@@ -335,25 +355,22 @@
 
         // Oculta todos los canvas primero
         todos.forEach(s => {
-          document.getElementById(`chart_24_${s}`).style.display = "none";
+          document.getElementById(`bloque_24_${s}`).style.display = "none";
         });
-
-        // Muestra solo los elegidos
         sensores.forEach(s => {
-          document.getElementById(`chart_24_${s}`).style.display = "block";
+          document.getElementById(`bloque_24_${s}`).style.display = "block";
         });
-
 
         const nombres = {
-          humedad: "Humedad del Aire (%)",
-          temperatura: "Temperatura Ambiental (°C)",
-          suelo: "Humedad del Suelo (%)"
+          humedad: "Valor en %",
+          temperatura: "Valor en °C",
+          suelo: "Valor en %"
         };
 
         sensores.forEach(sensor => {
           const etiquetas = data.map(d => {
           const fecha = new Date(d.fechaCompleta);
-          return `${fecha.toLocaleDateString()} ${fecha.getHours()}:00`;
+          return `${fecha.getHours()}:00`;
         });
           const valores = data.map(d => d[sensor]);
 
@@ -422,18 +439,16 @@
 
         // Oculta todos los canvas primero
         todos.forEach(s => {
-          document.getElementById(`chart_semana_${s}`).style.display = "none";
+          document.getElementById(`bloque_semana_${s}`).style.display = "none";
         });
-
-        // Muestra solo los elegidos
         sensores.forEach(s => {
-          document.getElementById(`chart_semana_${s}`).style.display = "block";
+          document.getElementById(`bloque_semana_${s}`).style.display = "block";
         });
 
         const nombres = {
-          humedad: "Humedad del Aire (%)",
-          temperatura: "Temperatura Ambiental (°C)",
-          suelo: "Humedad del Suelo (%)"
+          humedad: "Valor en %",
+          temperatura: "Valor en °C",
+          suelo: "Valor en %"
         };
 
         sensores.forEach(sensor => {
@@ -445,7 +460,7 @@
 
           const etiquetas = datosValidos.map(d => {
             const f = new Date(d.dia);
-            return f.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' });
+            return f.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month:"2-digit" });
           });
 
           const minimos = datosValidos.map(d =>

@@ -5,7 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Monitorización de los datos</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    Chart.register(ChartDataLabels);
+  </script>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  
   <style>
     body {
       font-family: 'Roboto', sans-serif;
@@ -85,14 +92,46 @@
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
+      align-items: center;
       gap: 1rem;
-      margin-bottom: 2rem;
+      margin: 1.5rem 0;
     }
 
-    .filters input {
-      padding: 0.5rem;
-      font-size: 1rem;
-      flex: 1 1 150px;
+    .filters-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .filters label {
+      font-size: 0.95rem;
+      font-weight: 500;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filters input,
+    .filters select {
+      padding: 0.4rem 0.6rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+
+    .filters button {
+      background-color: #3d5acc;
+      color: #fff;
+      border: none;
+      padding: 0.5rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .filters button:hover {
+      background-color: #2c3e99;
     }
 
     footer {
@@ -115,6 +154,20 @@
         width: 100%;
       }
 
+      .filters-group {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .filters label {
+        width: 100%;
+      }
+
+      .filters button {
+        width: 100%;
+      }
+      
       .stat {
         flex: 1 1 100%;
       }
@@ -177,12 +230,48 @@
   y exportar los datos en un archivo CSV-->
   <div class="container">
     <div class="filters">
-      <div>
-        <label>Desde: <input type="date" id="fechaInicio"></label>
-        <label>Hasta: <input type="date" id="fechaFin"></label>
+      <div class="filters-group">
+        <label>Desde:
+          <input type="date" id="fechaInicio">
+        </label>
+        <label>Hasta:
+          <input type="date" id="fechaFin">
+        </label>
+        <label>Sensor:
+          <select id="sensorSeleccionado">
+            <option value="todos">Todos</option>
+            <option value="humedad">Humedad</option>
+            <option value="temperatura">Temperatura</option>
+            <option value="suelo">Humedad del Suelo</option>
+          </select>
+        </label>
         <button onclick="cargarDatos()">Filtrar</button>
       </div>
-      <button id="exportarBtn" onclick="exportarCSV()">📁 Exportar CSV</button>
+
+      <div class="filters-group">
+        <button id="exportarBtn" onclick="exportarCSV()">📁 Exportar CSV</button>
+        <button onclick="exportarGraficaPDF('chart_24_humedad')">📄 Exportar PDF Humedad 24H</button>
+        <button onclick="exportarGraficaPDF('chart_24_temperatura')">📄 Exportar PDF Temperatura 24H</button>
+        <button onclick="exportarGraficaPDF('chart_semana_humedad')">📄 Exportar PDF Humedad Semanal</button>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2 style="font-size:1.8rem">📊 Últimas 24 Horas Registradas</h2>
+      <div class="chart-wrapper">
+        <canvas id="chart_24_humedad"></canvas>
+        <canvas id="chart_24_temperatura" style="margin-top:40px"></canvas>
+        <canvas id="chart_24_suelo" style="margin-top:40px"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="font-size:1.8rem">📈 Histórico semanal</h2>
+      <div class="chart-wrapper">
+        <canvas id="chart_semana_humedad"></canvas>
+        <canvas id="chart_semana_temperatura" style="margin-top:40px"></canvas>
+        <canvas id="chart_semana_suelo" style="margin-top:40px"></canvas>
+      </div>
     </div>
 
     <div id="graficas"></div>
@@ -233,11 +322,214 @@
         });
     }
 
+    async function mostrarGraficas24Horas(sensorSeleccionado = "todos") {
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch('https://monitorizacion-dashboard.onrender.com/api/ultimas24horas', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        const todos = ["humedad", "temperatura", "suelo"];
+        const sensores = sensorSeleccionado === "todos" ? todos : [sensorSeleccionado];
+
+        // Oculta todos los canvas primero
+        todos.forEach(s => {
+          document.getElementById(`chart_24_${s}`).style.display = "none";
+        });
+
+        // Muestra solo los elegidos
+        sensores.forEach(s => {
+          document.getElementById(`chart_24_${s}`).style.display = "block";
+        });
+
+
+        const nombres = {
+          humedad: "Humedad del Aire (%)",
+          temperatura: "Temperatura Ambiental (°C)",
+          suelo: "Humedad del Suelo (%)"
+        };
+
+        sensores.forEach(sensor => {
+          const etiquetas = data.map(d => {
+          const fecha = new Date(d.fechaCompleta);
+          return `${fecha.toLocaleDateString()} ${fecha.getHours()}:00`;
+        });
+          const valores = data.map(d => d[sensor]);
+
+          const max = Math.max(...valores);
+          const min = Math.min(...valores);
+          const colores = valores.map(v =>
+            v === max ? 'red' : v === min ? 'blue' : 'rgba(30,144,255,0.6)'
+          );
+
+          new Chart(document.getElementById(`chart_24_${sensor}`), {
+            type: 'bar',
+            data: {
+              labels: etiquetas,
+              datasets: [{
+                label: nombres[sensor],
+                data: valores,
+                backgroundColor: colores,
+                borderRadius: 6
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                x: {
+                  title: { display: true, text: "Hora", font: { size: 14 } },
+                  ticks: { font: { size: 12 } }
+                },
+                y: {
+                  title: { display: true, text: nombres[sensor], font: { size: 14 } },
+                  ticks: { font: { size: 12 } }
+                }
+              },
+              plugins: {
+                legend: { display: false }
+              }
+            }
+          });
+        });
+
+      } catch (err) {
+        console.error("Error cargando gráficas 24h:", err);
+      }
+    }
+
+    mostrarGraficas24Horas();
+
+    const historicoCharts = {}; // objeto para guardar instancias Chart
+    async function mostrarHistoricoSemanal(sensorSeleccionado = "todos") {
+      const token = localStorage.getItem('token');
+      const inicio = document.getElementById('fechaInicio').value;
+      const fin = document.getElementById('fechaFin').value;
+
+      const url = new URL('https://monitorizacion-dashboard.onrender.com/api/historico-semanal');
+      if (inicio) url.searchParams.append('inicio', inicio);
+      if (fin) url.searchParams.append('fin', fin);
+
+      try {
+        const res = await fetch(url.href, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        const todos = ["humedad", "temperatura", "suelo"];
+        const sensores = sensorSeleccionado === "todos" ? todos : [sensorSeleccionado];
+
+        // Oculta todos los canvas primero
+        todos.forEach(s => {
+          document.getElementById(`chart_semana_${s}`).style.display = "none";
+        });
+
+        // Muestra solo los elegidos
+        sensores.forEach(s => {
+          document.getElementById(`chart_semana_${s}`).style.display = "block";
+        });
+
+        const nombres = {
+          humedad: "Humedad del Aire (%)",
+          temperatura: "Temperatura Ambiental (°C)",
+          suelo: "Humedad del Suelo (%)"
+        };
+
+        sensores.forEach(sensor => {
+          // Filtra días que sí tengan datos min y max
+          const datosValidos = data.filter(d =>
+            (d[sensor].min != null && !isNaN(d[sensor].min)) ||
+            (d[sensor].max != null && !isNaN(d[sensor].max))
+          );
+
+          const etiquetas = datosValidos.map(d => {
+            const f = new Date(d.dia);
+            return f.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' });
+          });
+
+          const minimos = datosValidos.map(d =>
+            d[sensor].min != null && !isNaN(d[sensor].min) ? d[sensor].min : null
+          );
+
+          const maximos = datosValidos.map(d =>
+            d[sensor].max != null && !isNaN(d[sensor].max) ? d[sensor].max : null
+          );
+
+          if (historicoCharts[sensor]) {
+            historicoCharts[sensor].destroy();
+          }
+
+          historicoCharts[sensor] = new Chart(document.getElementById(`chart_semana_${sensor}`), {
+            type: 'line',
+            data: {
+              labels: etiquetas,
+              datasets: [
+                {
+                  label: "Máximo",
+                  data: maximos,
+                  borderColor: 'red',
+                  backgroundColor: 'red',
+                  tension: 0.3,
+                  pointBackgroundColor: 'red',
+                  pointBorderColor: 'red',
+                  fill: false
+                },
+                {
+                  label: "Mínimo",
+                  data: minimos,
+                  borderColor: 'blue',
+                  backgroundColor: 'blue',
+                  tension: 0.3,
+                  pointBackgroundColor: 'blue',
+                  pointBorderColor: 'blue',
+                  fill: false
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              spanGaps: true,
+              plugins: {
+                legend: { display: true },
+                tooltip: {
+                  callbacks: {
+                    label: ctx => `${ctx.dataset.label}: ${ctx.formattedValue}°`
+                  }
+                },
+                datalabels: {
+                  align: 'top',
+                  anchor: 'end',
+                  formatter: v => `${v}°`,
+                  font: { weight: 'bold' }
+                }
+              },
+              scales: {
+                x: {
+                  title: { display: true, text: "Fecha" }
+                },
+                y: {
+                  title: { display: true, text: nombres[sensor] }
+                }
+              }
+            },
+            plugins: [ChartDataLabels]
+          });
+        });
+
+      } catch (err) {
+        console.error("Error cargando histórico:", err);
+      }
+    }    
+
     //Si hay fechas selccionadas filtra los datos y  
     //llama a la funcion mostrarGraficasYEstadisticas() 
     function filtrarYMostrar() {
       const inicio = document.getElementById('fechaInicio').value;
       const fin = document.getElementById('fechaFin').value;
+      const sensor = document.getElementById('sensorSeleccionado').value;
+
       let datosFiltrados = todosLosDatos;
 
       if (inicio && fin) {
@@ -246,7 +538,10 @@
           return fecha >= new Date(inicio) && fecha <= new Date(fin);
         });
       }
-      mostrarGraficasYEstadisticas(datosFiltrados);
+
+      mostrarGraficasYEstadisticas(datosFiltrados, sensor);
+      mostrarHistoricoSemanal(sensor);
+      mostrarGraficas24Horas(sensor);
     }
 
     //Calcula el minimo, maximo, promedio, frecuencia y los valores validos o no
@@ -264,7 +559,7 @@
     }
 
     //Crea las graficas, las tablas y muestra la estadistica
-    function mostrarGraficasYEstadisticas(data) {
+    function mostrarGraficasYEstadisticas(data, sensorSeleccionado) {
       const contenedor = document.getElementById("graficas");
       contenedor.innerHTML = "";
 
@@ -281,7 +576,10 @@
       `;
       contenedor.appendChild(conteoHTML);
 
-      const sensores = ["humedad", "temperatura", "suelo"];
+      const sensores = sensorSeleccionado === "todos" 
+        ? ["humedad", "temperatura", "suelo"] 
+        : [sensorSeleccionado];
+
       const nombres = {
         humedad: "Humedad del Aire (%)",
         temperatura: "Temperatura Ambiental (°C)",
@@ -300,12 +598,12 @@
           frecuencia[grupo] = (frecuencia[grupo] || 0) + 1;
         });
 
-        // Ordenar todos por frecuencia descendente
+        //Ordena todo por frecuencia descendente
         const todosOrdenados = Object.keys(frecuencia)
           .map(label => ({ valor: label, freq: frecuencia[label] }))
           .sort((a, b) => b.freq - a.freq);
 
-        // Para la gráfica: solo top 10
+        //Muestra los 10 valores que más se repiten en la gráfica
         const top10 = todosOrdenados.slice(0, 10);
         const labels = top10.map(item => item.valor);
         const datos = top10.map(item => item.freq);
@@ -327,7 +625,7 @@
           </div>
         `;
 
-        // Tabla con los 10 más frecuentes
+        //Ttabla con los 10 más frecuentes
         const tabla = document.createElement("table");
         const thead = document.createElement("thead");
         thead.innerHTML = `
@@ -348,7 +646,7 @@
         card.appendChild(tabla);
         contenedor.appendChild(card);
 
-        // Crear la gráfica con los 10 más frecuentes
+        //Crea la gráfica 
         new Chart(document.getElementById(`grafico_${sensor}`), {
           type: "bar",
           data: {
@@ -419,19 +717,89 @@
     }
     //Genera  y descarga el archivo CSV mencionado al principio del código
     function exportarCSV() {
-      if (!todosLosDatos.length) return;
-      const encabezados = Object.keys(todosLosDatos[0]);
-      const filas = todosLosDatos.map(d => encabezados.map(e => d[e]).join(","));
+      let datosExportar = todosLosDatos;
+
+      const inicio = document.getElementById('fechaInicio').value;
+      const fin = document.getElementById('fechaFin').value;
+      const sensor = document.getElementById('sensorSeleccionado').value;
+
+      if (inicio && fin) {
+        datosExportar = datosExportar.filter(d => {
+          const fecha = new Date(d.tiempo);
+          return fecha >= new Date(inicio) && fecha <= new Date(fin);
+        });
+      }
+
+      // Agrupar por hora
+      const agrupado = {};
+
+      datosExportar.forEach(d => {
+        const fecha = new Date(d.tiempo);
+        const claveHora = fecha.toISOString().slice(0, 13); // yyyy-mm-ddTHH
+
+        if (!agrupado[claveHora]) {
+          agrupado[claveHora] = { humedad: [], temperatura: [], suelo: [] };
+        }
+
+        if (d.humedad != null) agrupado[claveHora].humedad.push(d.humedad);
+        if (d.temperatura != null) agrupado[claveHora].temperatura.push(d.temperatura);
+        if (d.suelo != null) agrupado[claveHora].suelo.push(d.suelo);
+      });
+
+      const datosFinales = Object.entries(agrupado).map(([hora, valores]) => {
+        const obj = { hora };
+        if (sensor === 'humedad' || sensor === 'todos') {
+          obj.humedad = valores.humedad.length ? (valores.humedad.reduce((a,b) => a + b, 0) / valores.humedad.length).toFixed(2) : '';
+        }
+        if (sensor === 'temperatura' || sensor === 'todos') {
+          obj.temperatura = valores.temperatura.length ? (valores.temperatura.reduce((a,b) => a + b, 0) / valores.temperatura.length).toFixed(2) : '';
+        }
+        if (sensor === 'suelo' || sensor === 'todos') {
+          obj.suelo = valores.suelo.length ? (valores.suelo.reduce((a,b) => a + b, 0) / valores.suelo.length).toFixed(2) : '';
+        }
+        return obj;
+      });
+
+      if (!datosFinales.length) return alert("No hay datos para exportar");
+
+      const encabezados = Object.keys(datosFinales[0]);
+      const filas = datosFinales.map(d => encabezados.map(e => d[e]).join(","));
       const csv = [encabezados.join(","), ...filas].join("\n");
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "datos_sensores_plataforma.csv";
+      a.download = `datos_${sensor}.csv`;
       a.click();
+    }
+    async function exportarGraficaPDF(idCanvas) {
+      const canvas = document.getElementById(idCanvas);
+      if (!canvas) return alert("Gráfica no encontrada");
+
+      const image = await html2canvas(canvas);
+      const imgData = image.toDataURL('image/png');
+
+      // 📝 Configurar PDF horizontal (landscape)
+      const pdf = new jspdf.jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      // Ajustar imagen al ancho de la hoja manteniendo proporción
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pageWidth - 20; // márgenes
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      pdf.addImage(imgData, 'PNG', 10, 20, pdfWidth, pdfHeight);
+      pdf.save(`${idCanvas}.pdf`);
     }
 
     cargarDatos();
+    filtrarYMostrar();
   </script>
 </body>
 </html>

@@ -1,48 +1,41 @@
-// 1. CARGAR CONFIG Y MÓDULOS
-require('dotenv').config();              // ➜ carga MONGO_URI, JWT_SECRET…
+//Se importan los módulos necesarios para crear el servidor, habilitar peticiones y conectar la BD
+require('dotenv').config();              
 const express    = require('express');
 const cors       = require('cors');
 const bcrypt     = require('bcrypt');
 const jwt        = require('jsonwebtoken');
 const { MongoClient } = require('mongodb');
-const path = require('path'); // si aún no lo tienes
+const path = require('path'); // 
 
-// 2. INICIALIZAR APP Y MIDDLEWARES
 const app = express();
-app.use(cors());                         // ➜ habilita CORS PARA TODAS las rutas
-app.use(express.json());                 // ➜ parsea JSON en req.body
+app.use(cors());                         
+app.use(express.json());                
 app.use(express.static(path.join(__dirname, 'public')));
 
 
-// 3. DEFINIR VARIABLES DE CONEXIÓN
+//Variables de conexion 
 const PORT        = process.env.PORT || 3000;
 const uri         = process.env.MONGO_URI;
 const cliente     = new MongoClient(uri);
 const dbName      = 'cenicilla';
 const collectionName = 'sensores';
-let coleccion, coleccionUsuarios;        // referencias a colecciones
+let coleccion, coleccionUsuarios;        
 
 
-// 4. FUNCIÓN PARA CONECTAR A MONGO
+//Conexion a mongo
 async function conectarDB() {
   try {
     await cliente.connect();
     const db = cliente.db(dbName);
-
-    // 4.1. tu colección de sensores (ya existe)
     coleccion = db.collection(collectionName);
-
-    // 4.2. referencia a 'usuarios' (si no existe, se creará al primer insert)
     coleccionUsuarios = db.collection('usuarios');
-
-    console.log('✅ Conectado a MongoDB');
+    console.log('Conectado a MongoDB');
   } catch (err) {
-    console.error('❌ Error conectando a MongoDB:', err);
+    console.error('Error conectando a MongoDB:', err);
   }
 }
 
-
-// 5. MIDDLEWARE DE AUTENTICACIÓN
+//Middleware de autenticación 
 function verificarToken(req, res, next) {
   const header = req.headers.authorization;
   if (!header) return res.status(401).json({ error: 'Token faltante' });
@@ -56,19 +49,17 @@ function verificarToken(req, res, next) {
 }
 
 
-// 6. RUTA DE REGISTRO (solo admin puede usarla)
+//ruta de registro solo para admin 
 app.post('/api/register', verificarToken, async (req, res) => {
   const { email, password, rol = 'usuario' } = req.body;
   try {
-    // Validar que el usuario que hace la petición sea admin
+    //validar que el usuario que hace la petición sea admin
     const admin = await coleccionUsuarios.findOne({ email: req.usuario.email });
     if (!admin || admin.rol !== 'admin') {
       return res.status(403).json({ error: 'No autorizado para registrar usuarios' });
     }
-
     const existe = await coleccionUsuarios.findOne({ email });
     if (existe) return res.status(400).json({ error: 'El correo ya está registrado' });
-
     const hash = await bcrypt.hash(password, 10);
     await coleccionUsuarios.insertOne({
       email,
@@ -83,7 +74,7 @@ app.post('/api/register', verificarToken, async (req, res) => {
 });
 
 
-// 7. RUTA DE LOGIN
+//ruta de login
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   const user = await coleccionUsuarios.findOne({ email });
@@ -100,7 +91,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 
-// 8. RUTA PROTEGIDA DE ESTADÍSTICAS
+//ruta a estadisticas 
 app.get('/api/estadisticas', verificarToken, async (req, res) => {
   try {
     const registros = await coleccion.find().sort({ timestamp: -1 }).toArray();
@@ -117,7 +108,7 @@ app.get('/api/estadisticas', verificarToken, async (req, res) => {
 });
 
 
-// 9. NUEVA RUTA PARA OBTENER ROL DEL USUARIO
+//ruta para obtener rol del usuario
 app.get('/api/usuario', verificarToken, async (req, res) => {
   try {
     const usuario = await coleccionUsuarios.findOne({ email: req.usuario.email });
@@ -129,12 +120,159 @@ app.get('/api/usuario', verificarToken, async (req, res) => {
   }
 });
 
-// Ruta para la raíz (inicio)
+// Ruta mejorada: Últimas 24 horas con fallback
+app.get('/api/ultimas24horas', verificarToken, async (req, res) => {
+  try {
+    const hace24Horas = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    // 1️⃣ Intenta buscar registros de las últimas 24 horas reales
+    let registros = await coleccion
+      .find({ timestamp: { $gte: hace24Horas } })
+      .sort({ timestamp: 1 })
+      .toArray();
+
+    // 2️⃣ Si no hay datos, trae últimos registros para armar 24 horas registradas
+    if (registros.length === 0) {
+      registros = await coleccion
+        .find({})
+        .sort({ timestamp: -1 })
+        .limit(500) // un rango amplio
+        .toArray();
+
+      registros.reverse(); // para orden ascendente
+    }
+
+    // 3️⃣ Agrupa por hora y toma el último de cada hora
+    const porHora = {};
+
+    for (const doc of registros) {
+      const fecha = new Date(doc.timestamp);
+      const horaClave = fecha.toISOString().slice(0, 13); // yyyy-mm-ddTHH
+
+      porHora[horaClave] = {
+        humedad: doc.sensores?.humidity ?? porHora[horaClave]?.humedad,
+        temperatura: doc.sensores?.temperature ?? porHora[horaClave]?.temperatura,
+        suelo: doc.sensores?.humiditysuelo ?? porHora[horaClave]?.suelo,
+        fechaCompleta: fecha.toISOString()
+      };
+    }
+
+    const resultado = Object.entries(porHora)
+      .sort(([h1], [h2]) => h1.localeCompare(h2))
+      .slice(-24)
+      .map(([hora, valores]) => ({
+        hora,
+        ...valores
+      }));
+
+    res.json(resultado);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener datos de las últimas 24 horas' });
+  }
+});
+
+app.get('/api/historico-semanal', verificarToken, async (req, res) => {
+  try {
+    const { inicio, fin } = req.query;
+
+    let fechaFin = fin ? new Date(fin) : new Date();
+    let fechaInicio = inicio ? new Date(inicio) : new Date(fechaFin.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    if (inicio) fechaInicio.setHours(0, 0, 0, 0);
+    if (fin) fechaFin.setHours(23, 59, 59, 999);  
+
+    const sinRango = !inicio && !fin;
+
+    let registros = await coleccion
+      .find({ timestamp: { $gte: fechaInicio, $lte: fechaFin } })
+      .sort({ timestamp: 1 })
+      .toArray();
+
+    if (registros.length === 0 && sinRango) {
+      registros = await coleccion
+        .find({})
+        .sort({ timestamp: -1 })
+        .limit(1000)
+        .toArray();
+      registros.reverse();
+    }
+
+    const porDia = {};
+
+    for (const doc of registros) {
+      const fecha = new Date(doc.timestamp);
+      const diaClave = fecha.getFullYear() + "-" +
+        String(fecha.getMonth() + 1).padStart(2, '0') + "-" +
+        String(fecha.getDate()).padStart(2, '0');
+
+      if (!porDia[diaClave]) {
+        porDia[diaClave] = { humedad: [], temperatura: [], suelo: [] };
+      }
+
+      if (doc.sensores?.humidity != null) porDia[diaClave].humedad.push(doc.sensores.humidity);
+      if (doc.sensores?.temperature != null) porDia[diaClave].temperatura.push(doc.sensores.temperature);
+      if (doc.sensores?.humiditysuelo != null) porDia[diaClave].suelo.push(doc.sensores.humiditysuelo);
+    }
+
+    let primerDia, ultimoDia;
+
+    if (sinRango) {
+      if (registros.length) {
+        primerDia = new Date(registros[0].timestamp);
+        ultimoDia = new Date(registros[registros.length - 1].timestamp);
+      } else {
+        primerDia = fechaInicio;
+        ultimoDia = fechaFin;
+      }
+    } else {
+      primerDia = new Date(fechaInicio);
+      ultimoDia = new Date(fechaFin);
+    }
+
+    const diasContinuos = [];
+    let cursor = new Date(primerDia.getFullYear(), primerDia.getMonth(), primerDia.getDate());
+
+    while (cursor <= ultimoDia) {
+      const clave = cursor.getFullYear() + "-" +
+        String(cursor.getMonth() + 1).padStart(2, '0') + "-" +
+        String(cursor.getDate()).padStart(2, '0');
+      diasContinuos.push(clave);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    const resultado = diasContinuos.map(dia => {
+      const valores = porDia[dia];
+      return {
+        dia,
+        humedad: {
+          min: valores?.humedad?.length ? Math.min(...valores.humedad) : null,
+          max: valores?.humedad?.length ? Math.max(...valores.humedad) : null
+        },
+        temperatura: {
+          min: valores?.temperatura?.length ? Math.min(...valores.temperatura) : null,
+          max: valores?.temperatura?.length ? Math.max(...valores.temperatura) : null
+        },
+        suelo: {
+          min: valores?.suelo?.length ? Math.min(...valores.suelo) : null,
+          max: valores?.suelo?.length ? Math.max(...valores.suelo) : null
+        }
+      };
+    });
+
+    res.json(resultado);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener histórico semanal' });
+  }
+});
+
+//Ruta para la raíz
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 10. INICIAR CONEXIÓN Y SERVIDOR
+//Conexion y levantar servidor
 conectarDB().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 Servidor escuchando en http://localhost:${PORT}`);

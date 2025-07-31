@@ -1,0 +1,20 @@
+[
+  {
+    "device_id": "esp1",
+    "lat": 19.45,
+    "lng": 1098.9,
+    "descripcion": "Campo Norte"
+  },
+  {
+    "device_id": "esp2",
+    "lat": 19.702,
+    "lng": -103.466,
+    "descripcion": "Campo Sur"
+  },
+  {
+    "device_id": "esp3",
+    "lat": 983,
+    "lng": 3947,
+    "descripcion": "Campo Centro"
+  }
+]

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Administrar Sensores</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+
+    h1 {
+      color: #059b9a;
+    }
+
+    .sensor {
+      background: white;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+
+    .alerta {
+      color: red;
+      font-weight: bold;
+    }
+
+    button {
+      background-color: #059b9a;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #047c7b;
+    }
+  </style>
+</head>
+<body>
+  <h1>📍 Administración de Sensores</h1>
+  <button onclick="location.href='index.html'" style="margin-bottom: 1rem; float: right; margin-left: 1rem">
+    ⬅️ Regresar al Panel Principal
+  </button>
+  <button onclick="abrirModal(null)" style="margin-bottom: 1rem; float: right; margin-left: 1rem">
+    ➕ Agregar nuevo sensor</button>
+  <div id="contenedorSensores"></div>
+
+<!-- Modal -->
+  <div id="sensorModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#0008; backdrop-filter: blur(2px); justify-content:center; align-items:center; z-index:9999;">
+    <div style="background:white; padding:2rem; border-radius:12px; width:90%; max-width:400px; box-shadow:0 0 15px rgba(0,0,0,0.2);">
+      <h2 id="modalTitulo">Editar Sensor</h2>
+      <form id="sensorForm">
+        <label>ID del sensor:</label><br>
+        <input type="text" id="form_device_id" required readonly><br><br>
+
+        <label>Latitud:</label><br>
+        <input type="number" step="any" id="form_lat" required><br><br>
+
+        <label>Longitud:</label><br>
+        <input type="number" step="any" id="form_lng" required><br><br>
+
+        <label>Descripción:</label><br>
+        <input type="text" id="form_desc" required><br><br>
+
+        <div style="text-align:right;">
+          <button type="button" onclick="cerrarModal()" style="margin-right:1rem;">Cancelar</button>
+          <button type="submit">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script src="admin_sensores.js"></script>
+</body>
+</html>

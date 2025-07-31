@@ -1,3 +1,7 @@
+<!-- 
+  https://monitorizacion-dashboard.onrender.com
+  http://localhost:3000 
+-->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -218,6 +222,7 @@
     <p>Visualización de los datos recogidos por los sensores</p>
     <button class="logout-button" onclick="logout()">Cerrar sesión</button>
     <button id="adminBtn" class="logout-button" onclick="location.href='admin.html'">Administrar usuarios</button>
+    <button id="adminSensoresBtn" class="logout-button" onclick="location.href='admin_sensores.html'" style="display:none;">Administrar Sensores</button>
     <script>
       function logout() {
         localStorage.removeItem('token');
@@ -310,12 +315,18 @@
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
-        if (data.rol !== 'admin') {
+
+        if (data.rol === 'admin') {
+          document.getElementById('adminBtn').style.display = 'inline';
+          document.getElementById('adminSensoresBtn').style.display = 'inline';
+        } else {
           document.getElementById('adminBtn').style.display = 'none';
+          document.getElementById('adminSensoresBtn').style.display = 'none';
           document.getElementById('exportarBtn').style.display = 'none';
         }
       } catch {
         document.getElementById('adminBtn').style.display = 'none';
+        document.getElementById('adminSensoresBtn').style.display = 'none';
         document.getElementById('exportarBtn').style.display = 'none';
       }
     }
@@ -362,9 +373,9 @@
         });
 
         const nombres = {
-          humedad: "Valor en %",
-          temperatura: "Valor en °C",
-          suelo: "Valor en %"
+          humedad: "Humedad en %",
+          temperatura: "Temperatura en °C",
+          suelo: "Humedad del suelo en %"
         };
 
         sensores.forEach(sensor => {
@@ -372,44 +383,80 @@
           const fecha = new Date(d.fechaCompleta);
           return `${fecha.getHours()}:00`;
         });
-          const valores = data.map(d => d[sensor]);
+        const valores = data.map(d => d[sensor]);
 
-          const max = Math.max(...valores);
-          const min = Math.min(...valores);
-          const colores = valores.map(v =>
-            v === max ? 'red' : v === min ? 'blue' : 'rgba(30,144,255,0.6)'
-          );
+        const max = Math.max(...valores);
+        const min = Math.min(...valores);
+        const colores = valores.map(v =>
+          v === max ? 'red' : v === min ? 'blue' : 'rgba(30,144,255,0.6)'
+        );
 
-          new Chart(document.getElementById(`chart_24_${sensor}`), {
-            type: 'bar',
-            data: {
-              labels: etiquetas,
-              datasets: [{
+        new Chart(document.getElementById(`chart_24_${sensor}`), {
+          type: 'bar',
+          data: {
+            labels: etiquetas,
+            datasets: [
+              {
                 label: nombres[sensor],
                 data: valores,
                 backgroundColor: colores,
                 borderRadius: 6
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                x: {
-                  title: { display: true, text: "Hora", font: { size: 14 } },
-                  ticks: { font: { size: 12 } }
-                },
-                y: {
-                  title: { display: true, text: nombres[sensor], font: { size: 14 } },
-                  ticks: { font: { size: 12 } }
+              },
+              // Dataset vacío solo para mostrar cuadro rojo
+              {
+                label: 'Máximo',
+                data: [], // no tiene datos
+                backgroundColor: 'red'
+              },
+              // Dataset vacío solo para mostrar cuadro azul
+              {
+                label: 'Mínimo',
+                data: [], // no tiene datos
+                backgroundColor: 'blue'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: {
+                title: { display: true, text: "Hora", font: { size: 10 } },
+                ticks: {
+                  font: { size: 12 },
+                  autoSkip: true,
+                  maxRotation: 45,
+                  minRotation: 30
                 }
               },
-              plugins: {
-                legend: { display: false }
+              y: {
+                title: { display: true, text: nombres[sensor], font: { size: 14 } },
+                ticks: { font: { size: 12 } }
+              }
+            },
+            plugins: {
+              legend: {
+                display: true,
+                onClick: null,
+                labels: {
+                  boxWidth: 20,
+                  boxHeight: 20
+                }
+              },
+              datalabels: {
+                align: 'top',
+                anchor: 'end',
+                formatter: (value, context) => {
+                  const max = Math.max(...context.chart.data.datasets[0].data);
+                  const min = Math.min(...context.chart.data.datasets[0].data);
+                  return (value === max || value === min) ? value : '';
+                },
+                font: { weight: 'bold' }
               }
             }
-          });
+          }
         });
+      });
 
       } catch (err) {
         console.error("Error cargando gráficas 24h:", err);
@@ -446,9 +493,9 @@
         });
 
         const nombres = {
-          humedad: "Valor en %",
-          temperatura: "Valor en °C",
-          suelo: "Valor en %"
+          humedad: "Humedad en %",
+          temperatura: "Temperatura en °C",
+          suelo: "Humedad del suelo en %"
         };
 
         sensores.forEach(sensor => {
@@ -584,7 +631,7 @@
       conteoHTML.innerHTML = `
         <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Cantidad de datos registrados: </h2>
         <ul style="font-size: 1.1rem; padding-left: 1rem; list-style: none;">
-          <li>🌫️ <strong>Humedad del Aire:</strong> ${data.filter(d => d.humedad != null).length}</li>
+          <li>💧 <strong>Humedad del Aire:</strong> ${data.filter(d => d.humedad != null).length}</li>
           <li>🌡️ <strong>Temperatura Ambiental:</strong> ${data.filter(d => d.temperatura != null).length}</li>
           <li>🌱 <strong>Humedad del Suelo:</strong> ${data.filter(d => d.suelo != null).length}</li>
         </ul>

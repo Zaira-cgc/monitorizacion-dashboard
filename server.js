@@ -29,6 +29,7 @@ async function conectarDB() {
     const db = cliente.db(dbName);
     coleccion = db.collection(collectionName);
     coleccionUsuarios = db.collection('usuarios');
+    app.locals.coleccion = coleccion;
     console.log('Conectado a MongoDB');
   } catch (err) {
     console.error('Error conectando a MongoDB:', err);
@@ -266,6 +267,12 @@ app.get('/api/historico-semanal', verificarToken, async (req, res) => {
     res.status(500).json({ error: 'Error al obtener histórico semanal' });
   }
 });
+
+// 👇 Importa tu archivo de rutas admin
+const adminRoutes = require('./routes/admin');
+
+// 👇 Usa la ruta y protege con verificarToken (ya tienes este middleware)
+app.use('/api/admin', verificarToken, adminRoutes);
 
 //Ruta para la raíz
 app.get('/', (req, res) => {
